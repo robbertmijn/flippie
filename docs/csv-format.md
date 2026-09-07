@@ -1,6 +1,6 @@
 # Flippie CSV format
 
-Flippie imports one CSV document containing four tables separated by completely blank rows. It parses the entire document as standards-compliant CSV first, so quoted commas and quoted line breaks are preserved, and only then divides the parsed rows into sections.
+Flippie imports one CSV document containing four tables separated by completely blank rows. Its built-in standards-compliant reader parses the entire document first, so quoted commas, escaped quotes, quoted line breaks, CRLF line endings, and a UTF-8 byte-order mark are preserved, and only then divides the parsed rows into sections. The importer has no runtime CSV-library dependency.
 
 | Section | Purpose |
 | --- | --- |

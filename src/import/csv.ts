@@ -1,4 +1,3 @@
-import Papa from 'papaparse'
 import type { ImportFinding } from './types'
 
 export interface CsvSection {
@@ -15,16 +14,54 @@ export interface ParsedSections {
 
 const isEmptyRow = (row: string[]) => row.every((value) => value.trim() === '')
 
+function parseCsvRows(source: string): { rows: string[][]; findings: ImportFinding[] } {
+  const rows: string[][] = []
+  const findings: ImportFinding[] = []
+  let row: string[] = []
+  let field = ''
+  let quoted = false
+  let afterQuote = false
+  let line = 1
+
+  const finishField = () => { row.push(field); field = ''; afterQuote = false }
+  const finishRow = () => { finishField(); rows.push(row); row = [] }
+
+  for (let index = source.charCodeAt(0) === 0xfeff ? 1 : 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quoted) {
+      if (character === '"') {
+        if (source[index + 1] === '"') { field += '"'; index += 1 }
+        else { quoted = false; afterQuote = true }
+      } else {
+        field += character
+        if (character === '\n') line += 1
+      }
+      continue
+    }
+    if (character === '"' && field === '' && !afterQuote) { quoted = true; continue }
+    if (character === ',') { finishField(); continue }
+    if (character === '\n' || character === '\r') {
+      if (character === '\r' && source[index + 1] === '\n') index += 1
+      finishRow(); line += 1; continue
+    }
+    if (afterQuote && character !== ' ' && character !== '\t') {
+      findings.push({ level: 'error', code: 'csv-parse', row: line, message: 'Unexpected character after a closing quote.' })
+    }
+    field += character
+  }
+  if (quoted) findings.push({ level: 'error', code: 'csv-parse', row: line, message: 'Quoted field was not closed.' })
+  if (field !== '' || row.length > 0 || (source.length > 0 && !/[\r\n]$/.test(source))) finishRow()
+  return { rows, findings }
+}
+
 export function parseMultiSectionCsv(source: string): ParsedSections {
-  const parsed = Papa.parse<string[]>(source, { skipEmptyLines: false })
-  const findings: ImportFinding[] = parsed.errors.map((error) => ({
-    level: 'error', code: 'csv-parse', message: error.message, row: error.row === undefined ? undefined : error.row + 1,
-  }))
+  const parsed = parseCsvRows(source)
+  const findings = [...parsed.findings]
   const groups: Array<{ rows: string[][]; startRow: number }> = []
   let current: string[][] = []
   let startRow = 1
 
-  parsed.data.forEach((row, index) => {
+  parsed.rows.forEach((row, index) => {
     if (isEmptyRow(row)) {
       if (current.length) groups.push({ rows: current, startRow })
       current = []

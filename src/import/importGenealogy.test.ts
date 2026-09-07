@@ -19,6 +19,17 @@ describe('multi-section CSV parser', () => {
     expect(result.stats.people).toBe(8)
     expect(result.findings).toContainEqual(expect.objectContaining({ level: 'information', code: 'unknown-section' }))
   })
+
+  it('supports escaped quotes, CRLF files, and a UTF-8 byte-order mark', () => {
+    const parsed = parseMultiSectionCsv('\ufeffPlace,Name\r\n[P1],"The ""Old"" Town"\r\n')
+    expect(parsed.sections[0].records[0].Name).toBe('The "Old" Town')
+    expect(parsed.findings).toEqual([])
+  })
+
+  it('reports malformed quoted fields', () => {
+    const parsed = parseMultiSectionCsv('Place,Name\n[P1],"Never closed')
+    expect(parsed.findings).toContainEqual(expect.objectContaining({ level: 'error', code: 'csv-parse' }))
+  })
 })
 
 describe('four-section genealogy adapter', () => {
