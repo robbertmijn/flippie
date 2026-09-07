@@ -1,0 +1,1905 @@
+# Genealogy Web App — Product and Technical Requirements
+
+**Status:** Draft v0.2
+**Purpose:** Implementation specification for Codex
+**Hosting:** GitHub Pages
+**CI/CD:** GitHub Actions
+**Application type:** Fully client-side standalone web application
+
+---
+
+# 1. Product goal
+
+Build a standalone genealogy web application for users who want to explore and visualize family-history data **without uploading their genealogy data to an online genealogy database or application backend**.
+
+The application itself may be hosted publicly as static files on GitHub Pages, but the genealogy dataset must remain on the user's device.
+
+Primary workflow:
+
+1. User opens the application on GitHub Pages.
+2. User selects a genealogy CSV file from their computer.
+3. The browser parses the CSV locally.
+4. The imported data is converted to a normalized internal genealogy model.
+5. The user selects a focal/root person.
+6. The application provides:
+
+   * ancestor tree visualization;
+   * ancestor fan chart;
+   * generation-completeness analysis;
+   * record-completeness analysis;
+   * geographic ancestor maps;
+   * individual-person information;
+   * publication-quality exports.
+7. Closing or clearing the application must not leave genealogy data on an application server.
+
+The application should be useful as an analytical genealogy tool, not merely as a decorative family-tree renderer.
+
+---
+
+# 2. Hard privacy requirements
+
+Privacy is a core architectural constraint.
+
+## 2.1 Local processing
+
+The genealogy file must be processed entirely in the browser.
+
+The application must never send to GitHub Pages, GitHub, or another application server:
+
+* the CSV file;
+* parsed people;
+* names;
+* dates;
+* family relationships;
+* birth or death locations;
+* notes;
+* genealogy statistics derived from identifiable records.
+
+GitHub Pages should only serve static application assets.
+
+There must be:
+
+* no application backend;
+* no backend database;
+* no user account;
+* no authentication requirement;
+* no cloud synchronization.
+
+---
+
+## 2.2 No genealogy data in URLs
+
+Person IDs, names, places, or other genealogy data must not be embedded in externally visible URLs.
+
+Application navigation should use local application state.
+
+If URL routing is used, it must only contain generic view information.
+
+---
+
+## 2.3 Third-party services
+
+Third-party APIs must not silently receive genealogy data.
+
+In particular:
+
+* do not automatically geocode place names online;
+* do not send genealogy data to AI services;
+* do not use genealogy-aware analytics;
+* do not use session-replay services;
+* do not use advertising or tracking pixels.
+
+Any future feature that transmits genealogy information externally must:
+
+1. be disabled by default;
+2. explain exactly what information leaves the device;
+3. require explicit user action.
+
+---
+
+# 3. Hosting and deployment
+
+The application must be deployable as a static site using **GitHub Pages**.
+
+Vercel is not required.
+
+The production architecture is:
+
+```text
+GitHub repository
+        ↓
+GitHub Actions
+        ↓
+npm install / test / build
+        ↓
+static dist/
+        ↓
+GitHub Pages
+        ↓
+browser
+        ↓
+local genealogy processing
+```
+
+No runtime application server is required.
+
+---
+
+# 4. Recommended technology
+
+Use:
+
+* React;
+* TypeScript;
+* Vite;
+* client-side state management;
+* client-side CSV parsing;
+* SVG where practical for genealogy visualizations;
+* browser-side PDF generation.
+
+Avoid dependencies that require a backend.
+
+The overall architecture must separate:
+
+```text
+Source CSV
+    ↓
+CSV structure parser
+    ↓
+Import adapter
+    ↓
+Validation / normalization
+    ↓
+Canonical genealogy model
+    ↓
+Genealogy analysis engine
+    ↓
+Views / visualizations / exports
+```
+
+Visualization code must never depend directly on CSV column names.
+
+---
+
+# 5. Actual input CSV format
+
+The supplied sample file is:
+
+```text
+robbert_kwartierstaat.csv
+```
+
+The importer must support this format.
+
+The file is **not a conventional single-table CSV**.
+
+It consists of multiple CSV tables separated by blank rows.
+
+The supplied sample contains four sections:
+
+```text
+Place
+Person
+Marriage
+Family
+```
+
+The sample currently contains:
+
+* 105 place records;
+* 456 person records;
+* 229 family/union records in the `Marriage` section;
+* 230 family-child links;
+* 228 unique family IDs represented in the child-link section.
+
+The real CSV must never be committed to the repository.
+
+---
+
+# 6. Multi-section CSV parser
+
+The importer must not attempt to read the entire file as one rectangular table with one header.
+
+The sections have different numbers of columns.
+
+For example:
+
+```text
+Place,...
+...
+<blank row>
+
+Person,...
+...
+<blank row>
+
+Marriage,...
+...
+<blank row>
+
+Family,...
+...
+```
+
+A normal single-header CSV parser would therefore interpret later sections as malformed rows.
+
+## Required parsing strategy
+
+1. Parse the complete file using a standards-compliant CSV parser into raw rows.
+2. Preserve empty rows during initial parsing.
+3. Divide parsed rows into sections at completely empty rows.
+4. Treat the first row of each section as that section's header.
+5. Convert following rows into records using that section's header.
+6. Identify the section from its first header value.
+7. Pass each recognized section to the appropriate import adapter.
+
+Do not split the raw text using simple string operations before CSV parsing if doing so would break quoted CSV values containing line breaks.
+
+Unknown future sections should generate an informational import message rather than automatically causing the entire import to fail.
+
+---
+
+# 7. Place section
+
+Exact observed header:
+
+```text
+Place,
+Title,
+Name,
+Type,
+Latitude,
+Longitude,
+Code,
+Enclosed_by,
+Date
+```
+
+Example conceptual record:
+
+```text
+[P0006],,Utrecht,Unknown,52.08...,5.12...,,,
+```
+
+## Required field mapping
+
+```ts
+Place {
+    id: string
+    name: string
+
+    latitude?: number
+    longitude?: number
+
+    title?: string
+    type?: string
+    code?: string
+    enclosedById?: string
+    date?: GenealogyDate
+
+    raw: Record<string, string>
+}
+```
+
+Square brackets are part of the imported identifier format.
+
+The application may internally normalize:
+
+```text
+[P0006]
+```
+
+to:
+
+```text
+P0006
+```
+
+but the transformation must be consistent across every reference.
+
+Preferably preserve both the canonical ID and original imported value.
+
+---
+
+# 8. Geographic information in the supplied file
+
+The supplied sample already contains latitude and longitude for:
+
+```text
+96 / 105 places
+```
+
+Therefore most map functionality can work without external geocoding.
+
+Nine locations currently have no coordinates.
+
+These must remain valid place records.
+
+A place without coordinates must be represented as:
+
+```text
+known place
+geographic position unresolved
+```
+
+It must not be treated as an unknown place.
+
+The initial version must not automatically send these unresolved place names to an online geocoder.
+
+---
+
+# 9. Person section
+
+Exact observed header:
+
+```text
+Person
+Surname
+Given
+Call
+Suffix
+Prefix
+Title
+Gender
+Birth date
+Birth place
+Birth source
+Baptism date
+Baptism place
+Baptism source
+Death date
+Death place
+Death source
+Burial date
+Burial place
+Burial source
+Note
+```
+
+The supplied sample contains 456 people.
+
+---
+
+# 10. Person model
+
+Conceptually:
+
+```ts
+interface Person {
+    id: PersonId
+
+    name: {
+        given: string
+        surname?: string
+        prefix?: string
+        callName?: string
+        suffix?: string
+        title?: string
+        displayName: string
+    }
+
+    gender?: string
+
+    birth?: LifeEvent
+    baptism?: LifeEvent
+    death?: LifeEvent
+    burial?: LifeEvent
+
+    notes?: string
+
+    raw: Record<string, string>
+}
+```
+
+Parent relationships should **not** be permanently stored as fields parsed directly from the person row, because the CSV defines relationships through family records.
+
+Indexes may expose convenient derived fields such as:
+
+```ts
+fatherId
+motherId
+parentIds
+```
+
+but the canonical relationship information comes from the family model.
+
+---
+
+# 11. Name handling
+
+Name construction must preserve the distinction between:
+
+* given name;
+* call name;
+* prefix;
+* surname.
+
+For Dutch names, a person such as:
+
+```text
+Given: Wilhelmus
+Prefix: van der
+Surname: Mijn
+```
+
+should normally display as:
+
+```text
+Wilhelmus van der Mijn
+```
+
+Do not use surname sorting rules to determine display order.
+
+The importer must also tolerate incomplete or unusual name records.
+
+The sample contains records where:
+
+* `Surname` is empty;
+* `Prefix` contains what appears to be the remaining family-name text.
+
+Therefore a person's display name must never become blank simply because `Surname` is absent.
+
+Preserve original field values.
+
+---
+
+# 12. Dates
+
+Observed date formats in the supplied dataset are currently:
+
+```text
+YYYY
+YYYY-MM-DD
+```
+
+Examples:
+
+```text
+1789
+1780-06-23
+```
+
+The model must nevertheless support future partial or approximate genealogical dates.
+
+Do not convert genealogy dates directly into JavaScript `Date` objects and discard their precision.
+
+Use a model similar to:
+
+```ts
+interface GenealogyDate {
+    original: string
+
+    year?: number
+    month?: number
+    day?: number
+
+    precision:
+        | "day"
+        | "month"
+        | "year"
+        | "unknown"
+
+    qualifier:
+        | "exact"
+        | "about"
+        | "before"
+        | "after"
+        | "between"
+        | "unknown"
+}
+```
+
+For the current dataset:
+
+```text
+1789
+```
+
+must remain a year-precision date, not become:
+
+```text
+1789-01-01
+```
+
+---
+
+# 13. Life events
+
+Use a common structure:
+
+```ts
+interface LifeEvent {
+    date?: GenealogyDate
+    placeId?: PlaceId
+    source?: string
+}
+```
+
+Current person event types are:
+
+* birth;
+* baptism;
+* death;
+* burial.
+
+Not all event types need dedicated visualizations in v1, but all imported information must be preserved.
+
+---
+
+# 14. Marriage section
+
+Exact observed header:
+
+```text
+Marriage
+Husband
+Wife
+Date
+Place
+Source
+Note
+```
+
+Despite the CSV heading `Marriage`, this section should be treated internally as a **family/union record**.
+
+Reason:
+
+* many records have no marriage date;
+* the important structural purpose is to connect two parent records with one or more children;
+* some families contain only one known parent.
+
+Canonical model:
+
+```ts
+interface Family {
+    id: FamilyId
+
+    parent1Id?: PersonId
+    parent2Id?: PersonId
+
+    importedParentRoles: {
+        husbandId?: PersonId
+        wifeId?: PersonId
+    }
+
+    marriage?: LifeEvent
+
+    childIds: PersonId[]
+
+    note?: string
+    source?: string
+
+    raw: Record<string, string>
+}
+```
+
+Do not require both parents.
+
+The sample contains at least:
+
+* a family with a missing husband;
+* a family with a missing wife.
+
+These are valid partial genealogy records and must not fail import.
+
+---
+
+# 15. Family section
+
+Exact observed header:
+
+```text
+Family
+Child
+```
+
+This section creates child links to the family IDs defined in the `Marriage` section.
+
+Example:
+
+```text
+[F0000],[I0000]
+```
+
+means:
+
+```text
+person I0000 is a child of family F0000
+```
+
+Parentage is therefore reconstructed using:
+
+```text
+Family child mapping
+        ↓
+Family ID
+        ↓
+Marriage/family record
+        ↓
+Husband / Wife
+        ↓
+parents
+```
+
+This relationship must be implemented explicitly rather than inferred from ordering in the file.
+
+---
+
+# 16. Multiple children
+
+A family may have multiple child rows.
+
+The sample already contains families with multiple children.
+
+Therefore this is incorrect:
+
+```ts
+family.childId
+```
+
+Use:
+
+```ts
+family.childIds: PersonId[]
+```
+
+Likewise, a person-to-parents index should be derived from family membership.
+
+---
+
+# 17. Canonical indexes
+
+After import, construct indexes optimized for genealogy traversal.
+
+At minimum:
+
+```ts
+peopleById: Map<PersonId, Person>
+
+placesById: Map<PlaceId, Place>
+
+familiesById: Map<FamilyId, Family>
+
+parentsByChildId:
+    Map<PersonId, ParentRelationship>
+
+familiesByParentId:
+    Map<PersonId, FamilyId[]>
+```
+
+Do not repeatedly scan all 456+ person records while rendering a genealogy.
+
+---
+
+# 18. Referential integrity
+
+The supplied sample currently has internally consistent references:
+
+* parent person references resolve;
+* child person references resolve;
+* family references resolve;
+* referenced place IDs resolve.
+
+The importer must verify this for every loaded file rather than assume that future exports are valid.
+
+---
+
+# 19. Import validation
+
+Perform validation after parsing.
+
+Potential findings include:
+
+### Errors
+
+* duplicate person ID;
+* duplicate place ID;
+* duplicate family definition;
+* malformed CSV section;
+* missing required record ID.
+
+### Warnings
+
+* unknown parent ID;
+* unknown child ID;
+* unknown place ID;
+* family-child relation pointing to missing family;
+* self-parent relation;
+* ancestor cycle;
+* malformed coordinate;
+* malformed date;
+* death before birth;
+* child apparently born before parent;
+* highly implausible parental age.
+
+### Information
+
+* unresolved place coordinate;
+* incomplete date;
+* unknown parent;
+* unsupported extra CSV section.
+
+The application must distinguish:
+
+```text
+Error
+Warning
+Information
+```
+
+Warnings should normally allow import to continue.
+
+---
+
+# 20. Import report
+
+After import provide a summary including at least:
+
+```text
+People
+Places
+Families
+Parent-child relationships
+
+Birth dates available
+Birth places available
+Death dates available
+Death places available
+
+Places with coordinates
+Places without coordinates
+
+Warnings
+Errors
+```
+
+The current sample would, for example, yield approximately:
+
+```text
+People: 456
+Places: 105
+
+Birth dates: 251
+Birth places: 213
+Death dates: 217
+Death places: 162
+
+Mapped places: 96
+Unresolved places: 9
+```
+
+This screen is also useful for checking whether the file was interpreted correctly.
+
+---
+
+# 21. Root person
+
+Most analysis is relative to a focal person.
+
+The application must therefore have a persistent **root person selector**.
+
+Users must be able to:
+
+* search by name;
+* select a person;
+* change the root person at any time.
+
+Changing the root should update:
+
+* tree;
+* fan chart;
+* generation statistics;
+* map;
+* completeness analysis.
+
+---
+
+# 22. Optional root suggestion
+
+The application may suggest a likely root person when the imported graph has a unique obvious descendant endpoint.
+
+For example, a candidate may be a person who:
+
+* appears as a child;
+* has known parents;
+* does not occur as a parent in another family.
+
+This must only be a convenience.
+
+The user must always be able to choose another root.
+
+Do not bake assumptions about the supplied file's root person into the importer.
+
+---
+
+# 23. Ancestor traversal
+
+Ancestor traversal must operate on **ancestor slots**, not only unique people.
+
+Each ancestor slot has a path relative to the root.
+
+For example:
+
+```text
+root
+├── father
+│   ├── father's father
+│   └── father's mother
+└── mother
+    ├── mother's father
+    └── mother's mother
+```
+
+The same person can legitimately occupy more than one slot through pedigree collapse.
+
+The traversal engine must therefore distinguish:
+
+```text
+ancestor slot
+```
+
+from:
+
+```text
+person ID
+```
+
+---
+
+# 24. Pedigree collapse
+
+Pedigree collapse must be handled explicitly.
+
+For every generation calculate both:
+
+```text
+filled ancestor slots
+```
+
+and:
+
+```text
+unique people
+```
+
+Example:
+
+```text
+Expected slots: 64
+Filled slots: 62
+Unique people: 60
+```
+
+Completeness is based on filled slots:
+
+```text
+completion = filled slots / expected slots
+```
+
+not on number of unique people.
+
+---
+
+# 25. Generation completeness
+
+For generation `g`:
+
+```text
+expected slots = 2^g
+```
+
+where:
+
+```text
+generation 0 = root
+generation 1 = parents
+generation 2 = grandparents
+generation 3 = great-grandparents
+```
+
+For every generation calculate:
+
+```text
+expected slots
+filled slots
+missing slots
+unique people
+completion percentage
+```
+
+Display these numerically and graphically.
+
+---
+
+# 26. Ancestor tree
+
+Provide an interactive graphical ancestor tree.
+
+Required controls:
+
+* root person;
+* generation count;
+* zoom;
+* pan;
+* fit to view;
+* reset view.
+
+Nodes should support:
+
+* person name;
+* birth/death information where configured;
+* selection;
+* missing ancestor slots.
+
+Selecting a person opens their detail view.
+
+The visualization must distinguish:
+
+* known person;
+* missing ancestor;
+* repeated person caused by pedigree collapse.
+
+---
+
+# 27. Fan chart
+
+Provide a radial ancestor fan chart.
+
+Structure:
+
+```text
+centre: root
+ring 1: parents
+ring 2: grandparents
+ring 3: great-grandparents
+...
+```
+
+Required:
+
+* configurable number of generations;
+* selection of ancestor segments;
+* zoom where useful;
+* visible missing ancestor slots;
+* indication of repeated people where practical.
+
+Possible optional encodings include:
+
+* generation completeness;
+* branch;
+* record completeness.
+
+Colour must not be the only encoding.
+
+---
+
+# 28. Record completeness
+
+Ancestor existence and person-record completeness are separate concepts.
+
+For known people calculate availability of:
+
+* birth date;
+* birth place;
+* death date;
+* death place.
+
+Unknown ancestor slots must not count as known people with four missing fields.
+
+The UI must distinguish:
+
+```text
+Unknown ancestor
+```
+
+from:
+
+```text
+Known ancestor with unknown birth place
+```
+
+---
+
+# 29. Date completeness and precision
+
+Date analysis should distinguish:
+
+* full date;
+* month/year;
+* year only;
+* approximate date;
+* missing date.
+
+Provide both:
+
+```text
+date availability
+```
+
+and:
+
+```text
+date precision
+```
+
+Example:
+
+```text
+Birth date available: 82%
+
+Of known birth dates:
+Exact day: 25%
+Month precision: 3%
+Year precision: 72%
+```
+
+---
+
+# 30. Completeness dashboard
+
+Provide a dedicated completeness view.
+
+At minimum include:
+
+### Ancestor coverage by generation
+
+```text
+Generation
+Expected
+Known slots
+Missing
+Unique people
+Percentage
+```
+
+### Record completeness by generation
+
+For each generation:
+
+```text
+birth date %
+birth place %
+death date %
+death place %
+```
+
+### Overall data completeness
+
+Provide overall metrics for the currently selected ancestor population.
+
+---
+
+# 31. Person details
+
+Selecting a person should show:
+
+* complete display name;
+* call name where available;
+* gender where available;
+* birth date;
+* birth place;
+* baptism date/place where available;
+* death date;
+* death place;
+* parents;
+* children;
+* partner/family relationships;
+* generation(s) relative to root;
+* source information where imported;
+* notes where imported.
+
+Where a person occurs in multiple ancestor slots, their multiple paths from the root should be available.
+
+---
+
+# 32. Geographic map
+
+Provide an ancestor map.
+
+The initial map should support:
+
+* birth locations;
+* death locations;
+* both event types;
+* filtering by generation;
+* paternal branch;
+* maternal branch;
+* selecting a place;
+* seeing ancestors associated with a place.
+
+When multiple people share coordinates or a place ID, group them rather than placing indistinguishable overlapping markers.
+
+---
+
+# 33. Map privacy
+
+Coordinates already present in the genealogy file should be used directly.
+
+Do not send place names to an online geocoding API by default.
+
+Locations without coordinates should appear in an:
+
+```text
+Unresolved locations
+```
+
+list.
+
+The map feature must remain useful without external geocoding.
+
+If an online basemap is used, it must not include names or person information in network requests.
+
+A privacy-focused mode using locally bundled geographic boundaries or other static map assets is preferred.
+
+---
+
+# 34. Geographic precision
+
+The application must avoid implying false precision.
+
+Internally support concepts such as:
+
+```text
+exact coordinate
+city/town
+region
+country
+unknown
+```
+
+For current imported coordinates, preserve the coordinates exactly as provided.
+
+Do not manufacture coordinates for missing locations.
+
+---
+
+# 35. Export requirements
+
+High-quality export is a major application feature.
+
+Support export of:
+
+* ancestor tree;
+* fan chart;
+* completeness charts;
+* optionally map.
+
+Required formats:
+
+```text
+SVG
+PDF
+PNG
+```
+
+---
+
+# 36. SVG export
+
+SVG should be the preferred export format for genealogy charts where technically practical.
+
+SVG output should preserve:
+
+* vector text;
+* vector lines;
+* vector shapes.
+
+It should not simply contain a raster screenshot of the browser.
+
+---
+
+# 37. PDF export
+
+PDF generation must be appropriate for printing and publication.
+
+Where possible:
+
+```text
+tree/fan chart SVG
+        ↓
+vector PDF
+```
+
+rather than:
+
+```text
+browser screenshot
+        ↓
+JPEG/PNG
+        ↓
+PDF
+```
+
+The latter should not be used for vector genealogy visualizations.
+
+---
+
+# 38. PDF dimensions
+
+The export interface must support:
+
+### Presets
+
+```text
+A4
+A3
+A2
+A1
+A0
+Letter
+Custom
+```
+
+### Units
+
+```text
+mm
+cm
+inch
+```
+
+### Configuration
+
+* width;
+* height;
+* portrait/landscape;
+* margins;
+* crop to content.
+
+Large-format output must work without reducing chart resolution.
+
+---
+
+# 39. Export appearance controls
+
+Provide fine-grained settings independent from the interactive screen.
+
+At minimum support:
+
+* number of generations;
+* page dimensions;
+* font size;
+* node dimensions;
+* generation spacing;
+* horizontal spacing;
+* line thickness;
+* name display;
+* birth-date display;
+* death-date display;
+* place display;
+* title;
+* legend;
+* colour/monochrome;
+* background;
+* crop to content.
+
+Export configuration must not require changing the normal interactive visualization.
+
+---
+
+# 40. Raster resolution
+
+PNG export must support explicit DPI/resolution settings.
+
+At minimum:
+
+```text
+150 DPI
+300 DPI
+600 DPI
+Custom
+```
+
+The calculated pixel dimensions should be shown before export.
+
+For example:
+
+```text
+A3 at 300 DPI
+→ calculated pixel dimensions
+```
+
+Warn users when requested raster dimensions are unusually large and may exhaust browser memory.
+
+SVG and vector PDF should be described as resolution-independent where appropriate.
+
+---
+
+# 41. Local persistence
+
+The basic application must work without saving imported data.
+
+Optional local persistence may use:
+
+```text
+IndexedDB
+```
+
+If implemented:
+
+* it must stay on the device;
+* it must be optional;
+* users must be able to remove saved datasets;
+* the interface must make clear that storage is local.
+
+Do not use remote persistence.
+
+---
+
+# 42. Dataset replacement
+
+Users must be able to:
+
+* load a CSV;
+* replace the current CSV;
+* reload an updated export;
+* clear the dataset.
+
+Loading a new dataset must reset all state derived from the old dataset.
+
+Do not automatically merge datasets.
+
+---
+
+# 43. Performance
+
+The application should comfortably support several thousand people.
+
+Avoid repeated full-array scans during visualization.
+
+Use indexed lookups.
+
+Genealogy traversal must:
+
+* detect cycles;
+* avoid infinite recursion;
+* memoize expensive analyses where helpful;
+* handle deep ancestry without blocking the browser unnecessarily.
+
+The supplied 456-person dataset should be considered a small normal dataset rather than a stress test.
+
+---
+
+# 44. Application structure
+
+Suggested interface:
+
+```text
+Header
+├── Load / replace dataset
+├── Current root
+├── Dataset information
+└── Settings
+
+Navigation
+├── Tree
+├── Fan chart
+├── Completeness
+├── Map
+├── People
+└── Data quality
+
+Main content
+```
+
+The root-person selector should remain easy to access.
+
+---
+
+# 45. Application states
+
+Explicitly support:
+
+### No data
+
+Show:
+
+* product explanation;
+* privacy explanation;
+* load-file action.
+
+### Importing
+
+Show parsing progress/status where appropriate.
+
+### Loaded successfully
+
+Open genealogy views.
+
+### Loaded with warnings
+
+Allow normal use while making warnings accessible.
+
+### Import failed
+
+Explain the reason and allow a replacement file.
+
+---
+
+# 46. Privacy message
+
+The import page should clearly state:
+
+> Your genealogy file is processed locally in your browser. It is not uploaded to this website or stored in an online genealogy database.
+
+Only show this statement if the implementation continues to satisfy it.
+
+---
+
+# 47. Repository structure
+
+Suggested structure:
+
+```text
+/
+├── src/
+│   ├── import/
+│   │   ├── csv/
+│   │   └── adapters/
+│   ├── model/
+│   ├── genealogy/
+│   ├── analysis/
+│   ├── visualization/
+│   ├── map/
+│   ├── export/
+│   ├── components/
+│   ├── views/
+│   └── utils/
+│
+├── tests/
+├── public/
+├── docs/
+├── sample-data/
+├── .github/
+│   └── workflows/
+└── README.md
+```
+
+---
+
+# 48. CSV documentation
+
+Create:
+
+```text
+docs/csv-format.md
+```
+
+It must document the actual four-section format.
+
+Include:
+
+```text
+Place → location definitions
+
+Person → individual records
+
+Marriage → parent/family definitions
+
+Family → family-to-child links
+```
+
+Also document:
+
+* ID syntax;
+* reference resolution;
+* missing values;
+* date parsing;
+* coordinate parsing;
+* multi-child families;
+* missing-parent families.
+
+---
+
+# 49. Test dataset
+
+Create a small **fictional** CSV test fixture using exactly the same multi-section structure.
+
+It should include deliberately:
+
+* several generations;
+* missing ancestor;
+* missing father;
+* missing mother;
+* year-only date;
+* full date;
+* missing birth place;
+* place with coordinates;
+* place without coordinates;
+* multiple children in one family;
+* pedigree collapse;
+* malformed reference fixture for validation tests.
+
+Do not copy real names from the supplied genealogy file into committed test data.
+
+---
+
+# 50. Automated tests
+
+At minimum test:
+
+## CSV structure
+
+* four-section parsing;
+* blank section separators;
+* variable column counts;
+* quoted commas;
+* quoted line breaks;
+* unknown extra section.
+
+## Place import
+
+* coordinates;
+* missing coordinates;
+* place references.
+
+## Person import
+
+* names;
+* prefixes;
+* missing surname;
+* full date;
+* year-only date;
+* missing fields.
+
+## Families
+
+* two parents;
+* one missing parent;
+* multiple children;
+* broken person reference.
+
+## Genealogy traversal
+
+* parents;
+* grandparents;
+* deep generations;
+* missing ancestors;
+* pedigree collapse;
+* cycle protection.
+
+## Completeness
+
+Verify:
+
+```text
+expected ancestor slots
+filled slots
+missing slots
+unique people
+record completeness
+date precision
+```
+
+## Export
+
+Verify that representative:
+
+```text
+SVG
+PDF
+PNG
+```
+
+exports can be generated successfully.
+
+---
+
+# 51. GitHub Actions CI
+
+All pull requests must run:
+
+```text
+npm ci
+type check
+lint
+unit tests
+production build
+```
+
+A broken build must not be merged unintentionally.
+
+Tests must not require network access to external genealogy services.
+
+---
+
+# 52. GitHub Pages deployment
+
+Production deployment must use GitHub Pages.
+
+Expected flow:
+
+```text
+feature branch
+     ↓
+pull request
+     ↓
+GitHub Actions CI
+     ↓
+merge into main
+     ↓
+build
+     ↓
+GitHub Pages deployment
+```
+
+Do not introduce Vercel configuration unless explicitly requested later.
+
+---
+
+# 53. Vite and GitHub Pages
+
+The production build must account for GitHub Pages potentially serving the application below a repository path:
+
+```text
+https://username.github.io/repository-name/
+```
+
+Configure the Vite base path accordingly.
+
+The application must work correctly when hosted from a non-root path.
+
+Static assets must not assume:
+
+```text
+/
+```
+
+is the deployment root.
+
+---
+
+# 54. Client-side routing on GitHub Pages
+
+GitHub Pages does not provide an application server to rewrite arbitrary URLs back to the React entry point.
+
+Therefore either:
+
+1. use hash-based client-side routing; or
+2. avoid URL-based routing and keep application navigation in React state.
+
+Do not create a deployment that works from the homepage but produces 404 errors when views are opened directly.
+
+For this application, URL routing is not a core requirement.
+
+A simple single-page interface with local view state is preferred.
+
+---
+
+# 55. No environment secrets
+
+Basic production functionality should require:
+
+```text
+zero runtime secrets
+zero API keys
+zero server environment variables
+```
+
+The static build should be reproducible locally.
+
+---
+
+# 56. README requirements
+
+The README must explain:
+
+* what the app does;
+* its privacy model;
+* supported CSV structure;
+* local development;
+* testing;
+* production build;
+* GitHub Pages deployment;
+* how to load example data.
+
+Explicitly state that real genealogy datasets should not be committed to the repository.
+
+---
+
+# 57. Codex implementation rules
+
+Codex must follow these constraints:
+
+1. Do not add a backend.
+2. Do not add Vercel.
+3. Do not add authentication.
+4. Do not add an online database.
+5. Do not transmit genealogy data externally.
+6. Do not add automatic online geocoding.
+7. Do not commit the supplied genealogy CSV.
+8. Do not treat the CSV as one flat table.
+9. Preserve original imported values.
+10. Keep import logic separate from the canonical model.
+11. Model families independently from people.
+12. Support multiple children per family.
+13. Support missing parents.
+14. Distinguish ancestor slots from unique people.
+15. Preserve date precision.
+16. Prefer vector genealogy exports.
+17. Write tests for genealogy calculations.
+18. Do not silently change requirements.
+19. Document assumptions where source semantics are ambiguous.
+20. Do not add unrelated genealogy functionality simply because competing genealogy applications contain it.
+
+---
+
+# 58. v1 scope
+
+Version 1 must contain:
+
+* GitHub Pages deployment;
+* local multi-section CSV import;
+* normalized genealogy data model;
+* import report;
+* validation;
+* person search;
+* root selection;
+* ancestor traversal;
+* pedigree-collapse support;
+* interactive ancestor tree;
+* interactive fan chart;
+* generation completeness;
+* person-record completeness;
+* date-precision statistics;
+* person detail view;
+* geographic ancestor map;
+* unresolved-location handling;
+* SVG export;
+* configurable PDF export;
+* configurable PNG export;
+* GitHub Actions CI/CD.
+
+---
+
+# 59. Explicitly out of scope for v1
+
+Do not implement unless requirements are changed later:
+
+* backend;
+* Vercel;
+* user accounts;
+* cloud genealogy storage;
+* social sharing;
+* collaboration;
+* genealogy-network synchronization;
+* MyHeritage integration;
+* Ancestry integration;
+* FamilySearch integration;
+* DNA analysis;
+* AI-generated genealogy conclusions;
+* automatic online record searching;
+* automatic online geocoding;
+* genealogy editing;
+* multiple-dataset merging;
+* cloud backup;
+* payment functionality.
+
+GEDCOM support is a sensible future feature but is not required for v1.
+
+---
+
+# 60. Acceptance criteria
+
+The first production version is acceptable when all of the following succeed:
+
+1. Open the application from GitHub Pages.
+2. Confirm the application loads correctly below the repository path.
+3. Select a genealogy CSV from the local computer.
+4. Confirm no genealogy file upload occurs.
+5. Parse the four CSV sections correctly.
+6. Import people, places, families, and child relationships.
+7. Resolve parent relationships through family IDs.
+8. Preserve year-only dates as year-only dates.
+9. Import coordinates already contained in the file.
+10. Leave places without coordinates unresolved without external geocoding.
+11. Search for a person.
+12. Set that person as root.
+13. Display multiple ancestor generations.
+14. Correctly show missing ancestor slots.
+15. Correctly handle pedigree collapse.
+16. Display expected vs known ancestor slots per generation.
+17. Display unique-person counts separately.
+18. Show completeness of birth/death dates and places.
+19. Select a person and inspect their information.
+20. Display geographically known ancestor locations.
+21. Export the tree or fan chart as SVG.
+22. Export a configurable vector-oriented PDF.
+23. Export a user-selected raster resolution as PNG.
+24. Generate large-format PDF output without converting the complete visualization to a low-resolution screenshot.
+25. Replace or clear the dataset.
+26. Refresh the hosted application without genealogy data having been stored on an application server.
+27. Run automated tests successfully.
+28. Automatically deploy successful `main` builds to GitHub Pages.
+
+---
+
+# 61. Implementation order
+
+## Phase 1 — Foundation
+
+* Vite + React + TypeScript;
+* test framework;
+* lint/type checking;
+* GitHub Actions;
+* GitHub Pages deployment.
+
+## Phase 2 — Import
+
+* generic multi-section CSV reader;
+* actual four-section adapter;
+* ID normalization;
+* import validation;
+* fictional test fixture.
+
+## Phase 3 — Genealogy model
+
+* people;
+* places;
+* families;
+* relationship indexes;
+* ancestor traversal;
+* cycle detection;
+* pedigree collapse.
+
+## Phase 4 — Core analysis
+
+* root selection;
+* generations;
+* ancestor completeness;
+* record completeness;
+* date precision.
+
+## Phase 5 — Visualization
+
+* tree;
+* fan chart;
+* person detail interaction.
+
+## Phase 6 — Geography
+
+* coordinate lookup;
+* map;
+* filters;
+* unresolved locations.
+
+## Phase 7 — Export
+
+* SVG;
+* PDF;
+* PNG;
+* dimensions;
+* DPI;
+* detailed layout controls.
+
+## Phase 8 — Polish
+
+* performance;
+* responsive layout;
+* accessibility;
+* documentation.
+
+Later phases must not work around incomplete foundations in earlier phases.
+
+---
+
+# 62. Future possibilities
+
+The architecture should allow future development of:
+
+* descendant trees;
+* genealogy timelines;
+* migration maps;
+* surname analysis;
+* relationship-path finding;
+* historical boundaries;
+* local editing;
+* multiple datasets;
+* GEDCOM import/export;
+* source-quality analysis;
+* duplicate-person detection;
+* manual coordinate correction;
+* optional explicitly enabled geocoding;
+* encrypted local genealogy storage.
+
+These are architectural considerations only and are not part of v1.
