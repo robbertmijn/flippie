@@ -7,7 +7,7 @@ Flippie is a privacy-first genealogy web application for exploring family-histor
 
 ## Project status
 
-Phase 1 establishes the React + TypeScript + Vite application, automated checks, and GitHub Pages delivery. CSV import and the fictional example dataset are planned for Phase 2, so the file control in the foundation UI is intentionally disabled.
+Phases 1 and 2 are complete: the React foundation is deployed and the browser can import, normalize, validate, report on, replace, and clear a genealogy CSV. Genealogy traversal and relationship indexes are planned for Phase 3.
 
 ## Supported CSV structure
 
@@ -53,4 +53,4 @@ The production files are written to `dist/`. Vite emits relative asset paths so 
 
 ## Example data
 
-A small, fictional CSV fixture will be included with the Phase 2 importer. Real genealogy exports can contain sensitive personal information and must stay outside version control.
+A small, fictional CSV fixture is available at `sample-data/fictional-family.csv`. Choose **Load a genealogy CSV** in the application to try it. Format details are documented in [`docs/csv-format.md`](docs/csv-format.md). Real genealogy exports can contain sensitive personal information and must stay outside version control.
