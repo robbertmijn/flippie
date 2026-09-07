@@ -1,0 +1,13 @@
+Place,Title,Name,Type,Latitude,Longitude,Code,Enclosed_by,Date
+[P1],,Imaginary Point,Town,50,4,,,
+
+Person,Surname,Given,Call,Suffix,Prefix,Title,Gender,Birth date,Birth place,Birth source,Baptism date,Baptism place,Baptism source,Death date,Death place,Death source,Burial date,Burial place,Burial source,Note
+[I1],Example,Avery,,,,,X,2000,[P404],,,,,,,,,,,,
+
+Marriage,Husband,Wife,Date,Place,Source,Note
+[F1],[I404],[I1],,[P404],,Broken references
+
+Family,Child
+[F1],[I404]
+[F404],[I1]
+

@@ -7,3 +7,5 @@ coverage
 # Genealogy exports contain private personal data and must stay local.
 *.csv
 !tests/fixtures/*.csv
+!sample-data/fictional-family.csv
+!sample-data/malformed-references.csv

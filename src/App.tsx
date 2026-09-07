@@ -1,3 +1,7 @@
+import { useRef, useState } from 'react'
+import { importGenealogyCsv } from './import/importGenealogy'
+import type { ImportResult } from './import/types'
+
 const features = [
   ['Branching paths', 'Explore ancestors in trees and radial fan charts.'],
   ['Clearer records', 'See gaps in dates, places, and generations at a glance.'],
@@ -16,6 +20,28 @@ function TreeMark() {
 }
 
 export function App() {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [result, setResult] = useState<ImportResult>()
+  const [fileName, setFileName] = useState('')
+
+  const loadFile = async (file: File | undefined) => {
+    if (!file) return
+    const source = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(file)
+    })
+    setResult(importGenealogyCsv(source))
+    setFileName(file.name)
+  }
+
+  const clearData = () => {
+    setResult(undefined)
+    setFileName('')
+    if (fileInput.current) fileInput.current.value = ''
+  }
+
   return (
     <div className="page-shell">
       <header className="site-header">
@@ -29,10 +55,11 @@ export function App() {
             <p className="eyebrow">Your history · Your device</p>
             <h1>Every family has<br />a story worth <em>seeing.</em></h1>
             <p className="intro">Turn your genealogy records into meaningful trees, maps, and insights—without your family data ever leaving your browser.</p>
-            <button className="load-button" type="button" disabled aria-describedby="foundation-note">
+            <input ref={fileInput} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={(event) => void loadFile(event.target.files?.[0])} />
+            <button className="load-button" type="button" onClick={() => fileInput.current?.click()} aria-describedby="local-file-note">
               <span>Load a genealogy CSV</span><b aria-hidden="true">→</b>
             </button>
-            <p id="foundation-note" className="foundation-note">File import is coming in the next development phase.</p>
+            <p id="local-file-note" className="foundation-note">Your file is read locally and never uploaded.</p>
           </div>
 
           <div className="hero-art" aria-label="An abstract family tree illustration">
@@ -54,6 +81,20 @@ export function App() {
             </svg>
           </div>
         </section>
+
+        {result && <section className="import-report" aria-labelledby="import-title" aria-live="polite">
+          <div className="report-heading">
+            <div><p className="eyebrow">Import complete</p><h2 id="import-title">Your file is ready</h2><p><strong>{fileName}</strong> was processed on this device.</p></div>
+            <div className="report-actions"><button type="button" onClick={() => fileInput.current?.click()}>Replace file</button><button type="button" onClick={clearData}>Clear data</button></div>
+          </div>
+          <dl className="stats-grid">
+            {Object.entries({ People: result.stats.people, Places: result.stats.places, Families: result.stats.families, 'Parent–child links': result.stats.parentChildRelationships, 'Birth dates': result.stats.birthDates, 'Birth places': result.stats.birthPlaces, 'Death dates': result.stats.deathDates, 'Death places': result.stats.deathPlaces, 'Mapped places': result.stats.mappedPlaces, 'Unresolved places': result.stats.unresolvedPlaces }).map(([label, count]) => <div key={label}><dt>{label}</dt><dd>{count}</dd></div>)}
+          </dl>
+          <div className="finding-summary">
+            {(['error', 'warning', 'information'] as const).map((level) => <span className={`finding-${level}`} key={level}><b>{result.findings.filter((finding) => finding.level === level).length}</b> {level === 'information' ? 'notes' : `${level}s`}</span>)}
+          </div>
+          {result.findings.length > 0 && <details><summary>View import messages</summary><ul>{result.findings.map((finding, index) => <li key={`${finding.code}-${index}`}><strong>{finding.level}:</strong> {finding.message}</li>)}</ul></details>}
+        </section>}
 
         <section className="privacy-card" aria-labelledby="privacy-title">
           <div className="lock-icon" aria-hidden="true">⌂</div>
