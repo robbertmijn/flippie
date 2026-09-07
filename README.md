@@ -7,7 +7,7 @@ Flippie is a privacy-first genealogy web application for exploring family-histor
 
 ## Project status
 
-**Phase 2 — Import is complete.** The React foundation is deployed and the browser can import, normalize, validate, report on, replace, and clear a genealogy CSV. Development can now proceed with Phase 3 genealogy traversal and relationship indexes.
+**Phase 3 — Genealogy model is complete.** Imported people, places, and families are exposed through canonical relationship indexes. Ancestor traversal preserves missing and repeated ancestor slots, and safely detects cycles. Development can now proceed with Phase 4 root selection and completeness analysis.
 
 ## Supported CSV structure
 
