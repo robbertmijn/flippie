@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+*.local
+.DS_Store
+
+# Genealogy exports contain private personal data and must stay local.
+*.csv
+!tests/fixtures/*.csv
