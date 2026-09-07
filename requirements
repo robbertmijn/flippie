@@ -1816,7 +1816,7 @@ The first production version is acceptable when all of the following succeed:
 
 # 61. Implementation order
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation ✅ Complete
 
 * Vite + React + TypeScript;
 * test framework;
@@ -1824,7 +1824,7 @@ The first production version is acceptable when all of the following succeed:
 * GitHub Actions;
 * GitHub Pages deployment.
 
-## Phase 2 — Import
+## Phase 2 — Import ✅ Complete
 
 * generic multi-section CSV reader;
 * actual four-section adapter;
