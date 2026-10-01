@@ -1,4 +1,4 @@
-# Genealogy Web App — Product and Technical Requirements
+# Flippie product and technical requirements
 
 **Status:** Draft v0.2
 **Purpose:** Implementation specification for Codex
@@ -1814,76 +1814,7 @@ The first production version is acceptable when all of the following succeed:
 
 ---
 
-# 61. Implementation order
-
-## Phase 1 — Foundation ✅ Complete
-
-* Vite + React + TypeScript;
-* test framework;
-* lint/type checking;
-* GitHub Actions;
-* GitHub Pages deployment.
-
-## Phase 2 — Import ✅ Complete
-
-* generic multi-section CSV reader;
-* actual four-section adapter;
-* ID normalization;
-* import validation;
-* fictional test fixture.
-
-## Phase 3 — Genealogy model
-
-* people;
-* places;
-* families;
-* relationship indexes;
-* ancestor traversal;
-* cycle detection;
-* pedigree collapse.
-
-## Phase 4 — Core analysis
-
-* root selection;
-* generations;
-* ancestor completeness;
-* record completeness;
-* date precision.
-
-## Phase 5 — Visualization
-
-* tree;
-* fan chart;
-* person detail interaction.
-
-## Phase 6 — Geography
-
-* coordinate lookup;
-* map;
-* filters;
-* unresolved locations.
-
-## Phase 7 — Export
-
-* SVG;
-* PDF;
-* PNG;
-* dimensions;
-* DPI;
-* detailed layout controls.
-
-## Phase 8 — Polish
-
-* performance;
-* responsive layout;
-* accessibility;
-* documentation.
-
-Later phases must not work around incomplete foundations in earlier phases.
-
----
-
-# 62. Future possibilities
+# 61. Future possibilities
 
 The architecture should allow future development of:
 
