@@ -21,6 +21,7 @@ Guides describe **how** to implement and verify bounded areas of work. They are 
 | [GitHub Pages deployment](guides/github-pages-deployment.md) | Phase 1 |
 | [CSV import](guides/csv-import.md) | Phase 2 |
 | [Genealogy model](guides/genealogy-model.md) | Phase 3 |
+| [Core analysis](guides/core-analysis.md) | Phase 4 |
 | [Testing](guides/testing.md) | All phases |
 
 When adding a substantial milestone, add or update a focused guide with its design boundaries, implementation sequence, and milestone-specific verification steps. Keep completion state only in `milestones.md`.

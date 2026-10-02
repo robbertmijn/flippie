@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { analyzeCompleteness } from './analysis/completeness'
+import { buildGenealogyIndexes, traverseAncestors } from './genealogy/model'
 import { importGenealogyCsv } from './import/importGenealogy'
 import type { ImportResult } from './import/types'
 
@@ -23,6 +25,21 @@ export function App() {
   const fileInput = useRef<HTMLInputElement>(null)
   const [result, setResult] = useState<ImportResult>()
   const [fileName, setFileName] = useState('')
+  const [rootPersonId, setRootPersonId] = useState('')
+  const [personSearch, setPersonSearch] = useState('')
+  const [generationCount, setGenerationCount] = useState(4)
+
+  const matchingPeople = useMemo(() => {
+    const query = personSearch.trim().toLocaleLowerCase()
+    return (result?.people ?? [])
+      .filter((person) => !query || person.name.displayName.toLocaleLowerCase().includes(query))
+      .sort((left, right) => left.name.displayName.localeCompare(right.name.displayName))
+      .slice(0, 20)
+  }, [personSearch, result])
+  const analysis = useMemo(() => {
+    if (!result || !rootPersonId) return undefined
+    return analyzeCompleteness(traverseAncestors(buildGenealogyIndexes(result), rootPersonId, generationCount))
+  }, [generationCount, result, rootPersonId])
 
   const loadFile = async (file: File | undefined) => {
     if (!file) return
@@ -34,11 +51,15 @@ export function App() {
     })
     setResult(importGenealogyCsv(source))
     setFileName(file.name)
+    setRootPersonId('')
+    setPersonSearch('')
   }
 
   const clearData = () => {
     setResult(undefined)
     setFileName('')
+    setRootPersonId('')
+    setPersonSearch('')
     if (fileInput.current) fileInput.current.value = ''
   }
 
@@ -94,6 +115,39 @@ export function App() {
             {(['error', 'warning', 'information'] as const).map((level) => <span className={`finding-${level}`} key={level}><b>{result.findings.filter((finding) => finding.level === level).length}</b> {level === 'information' ? 'notes' : `${level}s`}</span>)}
           </div>
           {result.findings.length > 0 && <details><summary>View import messages</summary><ul>{result.findings.map((finding, index) => <li key={`${finding.code}-${index}`}><strong>{finding.level}:</strong> {finding.message}</li>)}</ul></details>}
+        </section>}
+
+        {result && <section className="analysis-workspace" aria-labelledby="analysis-title">
+          <div className="analysis-heading">
+            <div><p className="eyebrow">Core analysis</p><h2 id="analysis-title">Choose whose ancestry to explore</h2></div>
+            {analysis && <label className="generation-control">Generations
+              <select value={generationCount} onChange={(event) => setGenerationCount(Number(event.target.value))}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => <option key={count} value={count}>{count}</option>)}
+              </select>
+            </label>}
+          </div>
+          <label className="person-search">Search people
+            <input type="search" value={personSearch} onChange={(event) => setPersonSearch(event.target.value)} placeholder="Type a name" />
+          </label>
+          <div className="person-results" aria-label="People matching search">
+            {matchingPeople.map((person) => <button className={person.id === rootPersonId ? 'selected' : ''} type="button" key={person.id} onClick={() => { setRootPersonId(person.id); setPersonSearch(person.name.displayName) }} aria-pressed={person.id === rootPersonId}>{person.name.displayName}</button>)}
+            {matchingPeople.length === 0 && <p>No matching people found.</p>}
+          </div>
+
+          {analysis && <div className="completeness-dashboard">
+            <div className="dashboard-summary"><div><span>Known ancestor slots</span><strong>{analysis.knownSlots}</strong></div><div><span>Unique people</span><strong>{analysis.uniquePeople}</strong></div><div><span>Birth dates</span><strong>{Math.round(analysis.recordAvailability.birthDate * 100)}%</strong></div><div><span>Death places</span><strong>{Math.round(analysis.recordAvailability.deathPlace * 100)}%</strong></div></div>
+            <div className="table-scroll"><table>
+              <caption>Ancestor coverage by generation</caption>
+              <thead><tr><th>Generation</th><th>Expected</th><th>Known slots</th><th>Missing</th><th>Unique people</th><th>Coverage</th></tr></thead>
+              <tbody>{analysis.generations.map((generation) => <tr key={generation.generation}><th>{generation.generation}</th><td>{generation.expectedSlots}</td><td>{generation.filledSlots}</td><td>{generation.missingSlots}</td><td>{generation.uniquePeople}</td><td><span className="coverage-bar"><i style={{ width: `${generation.completion * 100}%` }} /></span> {Math.round(generation.completion * 100)}%</td></tr>)}</tbody>
+            </table></div>
+            <div className="table-scroll"><table>
+              <caption>Record completeness by generation</caption>
+              <thead><tr><th>Generation</th><th>Birth date</th><th>Birth place</th><th>Death date</th><th>Death place</th></tr></thead>
+              <tbody>{analysis.generations.map((generation) => <tr key={generation.generation}><th>{generation.generation}</th>{(['birthDate', 'birthPlace', 'deathDate', 'deathPlace'] as const).map((field) => <td key={field}>{Math.round(generation.recordAvailability[field] * 100)}%</td>)}</tr>)}</tbody>
+            </table></div>
+            <div className="date-precision"><h3>Date precision across unique people</h3>{([['Birth', analysis.birthDates], ['Death', analysis.deathDates]] as const).map(([label, dates]) => <article key={label}><h4>{label} dates</h4><p>{dates.available} available · {dates.missing} missing · {dates.approximate} approximate</p><dl><div><dt>Full date</dt><dd>{dates.precision.day}</dd></div><div><dt>Month/year</dt><dd>{dates.precision.month}</dd></div><div><dt>Year only</dt><dd>{dates.precision.year}</dd></div><div><dt>Unrecognized</dt><dd>{dates.precision.unknown}</dd></div></dl></article>)}</div>
+          </div>}
         </section>}
 
         <section className="privacy-card" aria-labelledby="privacy-title">

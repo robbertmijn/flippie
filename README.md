@@ -7,7 +7,7 @@ Flippie is a privacy-first genealogy web application for exploring family-histor
 
 ## Project status
 
-**Phase 3 — Genealogy model is complete.** Imported people, places, and families are exposed through canonical relationship indexes. Ancestor traversal preserves missing and repeated ancestor slots, and safely detects cycles. Development can now proceed with Phase 4 root selection and completeness analysis.
+**Phase 4 — Core analysis is complete.** After importing, users can search for and change a root person, inspect slot-based ancestor coverage, compare unique-person counts, and review record availability and date precision. Development can now proceed with Phase 5 visualizations.
 
 Project documentation is organized by purpose:
 

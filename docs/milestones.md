@@ -1,6 +1,6 @@
 # Flippie implementation milestones
 
-**Current milestone:** Phase 4 — Core analysis
+**Current milestone:** Phase 5 — Visualization
 
 **Last reviewed:** 2026-10-02
 
@@ -41,13 +41,15 @@ This document is the status tracker for the implementation plan. Requirements an
 
 **Verification:** Model tests cover canonical indexes, normalized imported data, parents and grandparents, deep missing slots, repeated people in distinct slots, cycle protection, and traversal depth validation. See the [genealogy model guide](guides/genealogy-model.md).
 
-### Phase 4 — Core analysis 🚧 Next
+### Phase 4 — Core analysis ✅ Complete
 
 - Searchable root-person selection.
 - Generation completeness and unique-person statistics.
 - Record completeness and date-precision analysis.
 
-### Phase 5 — Visualization ⬜ Planned
+**Verification:** Analysis and application tests cover root search and replacement, slot-based generation coverage, unique-person counts, record availability, qualifiers, and date precision. See the [core analysis guide](guides/core-analysis.md).
+
+### Phase 5 — Visualization 🚧 Next
 
 - Interactive ancestor tree.
 - Radial fan chart.
