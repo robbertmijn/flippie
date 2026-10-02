@@ -1,8 +1,8 @@
 # Flippie implementation milestones
 
-**Current milestone:** Phase 3 — Genealogy model
+**Current milestone:** Phase 4 — Core analysis
 
-**Last reviewed:** 2026-10-01
+**Last reviewed:** 2026-10-02
 
 This document is the status tracker for the implementation plan. Requirements and acceptance criteria live in [`requirements.md`](requirements.md); implementation procedures live in [`guides/`](guides/).
 
@@ -32,16 +32,16 @@ This document is the status tracker for the implementation plan. Requirements an
 
 **Verification:** Import tests cover CSV structure, normalization, dates, relationships, and findings. See the [CSV import guide](guides/csv-import.md).
 
-### Phase 3 — Genealogy model 🚧 Next
+### Phase 3 — Genealogy model ✅ Complete
 
 - Relationship indexes for people, places, and families.
 - Efficient parent and family lookups.
 - Ancestor-slot traversal with missing slots.
 - Cycle detection and pedigree-collapse handling.
 
-**Exit criteria:** traversal tests cover parents, grandparents, deep generations, missing ancestors, repeated people in distinct slots, and cycle protection. See the [genealogy model guide](guides/genealogy-model.md).
+**Verification:** Model tests cover canonical indexes, normalized imported data, parents and grandparents, deep missing slots, repeated people in distinct slots, cycle protection, and traversal depth validation. See the [genealogy model guide](guides/genealogy-model.md).
 
-### Phase 4 — Core analysis ⬜ Planned
+### Phase 4 — Core analysis 🚧 Next
 
 - Searchable root-person selection.
 - Generation completeness and unique-person statistics.
