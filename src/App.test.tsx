@@ -33,5 +33,15 @@ describe('App', () => {
     expect(screen.getByText('Record completeness by generation')).toBeInTheDocument()
     expect(screen.getByText('Date precision across unique people')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Avery Example' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Interactive ancestor tree')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fan chart' }))
+    expect(screen.getByLabelText('Interactive radial ancestor fan chart')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Avery Example, root person/i }))
+    expect(screen.getByRole('dialog', { name: 'Avery Example' })).toBeInTheDocument()
+    expect(screen.getByText('1980')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /close person details/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

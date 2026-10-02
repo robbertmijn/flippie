@@ -1,6 +1,6 @@
 # Flippie implementation milestones
 
-**Current milestone:** Phase 5 — Visualization
+**Current milestone:** Phase 6 — Geography
 
 **Last reviewed:** 2026-10-02
 
@@ -49,13 +49,15 @@ This document is the status tracker for the implementation plan. Requirements an
 
 **Verification:** Analysis and application tests cover root search and replacement, slot-based generation coverage, unique-person counts, record availability, qualifiers, and date precision. See the [core analysis guide](guides/core-analysis.md).
 
-### Phase 5 — Visualization 🚧 Next
+### Phase 5 — Visualization ✅ Complete
 
 - Interactive ancestor tree.
 - Radial fan chart.
 - Person detail interactions.
 
-### Phase 6 — Geography ⬜ Planned
+**Verification:** Layout and application tests cover tree and fan rendering, missing and repeated ancestor treatment, view switching, and person details. See the [visualization guide](guides/visualizations.md).
+
+### Phase 6 — Geography 🚧 Next
 
 - Coordinate-based ancestor map and generation/branch filters.
 - Grouped places and unresolved-location handling.

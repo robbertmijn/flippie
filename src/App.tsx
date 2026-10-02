@@ -3,6 +3,9 @@ import { analyzeCompleteness } from './analysis/completeness'
 import { buildGenealogyIndexes, traverseAncestors } from './genealogy/model'
 import { importGenealogyCsv } from './import/importGenealogy'
 import type { ImportResult } from './import/types'
+import type { AncestorSlot } from './genealogy/model'
+import { AncestorVisualizations } from './visualization/AncestorVisualizations'
+import { PersonDetails } from './visualization/PersonDetails'
 
 const features = [
   ['Branching paths', 'Explore ancestors in trees and radial fan charts.'],
@@ -28,6 +31,7 @@ export function App() {
   const [rootPersonId, setRootPersonId] = useState('')
   const [personSearch, setPersonSearch] = useState('')
   const [generationCount, setGenerationCount] = useState(4)
+  const [selectedSlot, setSelectedSlot] = useState<AncestorSlot>()
 
   const matchingPeople = useMemo(() => {
     const query = personSearch.trim().toLocaleLowerCase()
@@ -36,10 +40,15 @@ export function App() {
       .sort((left, right) => left.name.displayName.localeCompare(right.name.displayName))
       .slice(0, 20)
   }, [personSearch, result])
+  const indexes = useMemo(() => result ? buildGenealogyIndexes(result) : undefined, [result])
+  const traversal = useMemo(() => {
+    if (!indexes || !rootPersonId) return undefined
+    return traverseAncestors(indexes, rootPersonId, generationCount)
+  }, [generationCount, indexes, rootPersonId])
   const analysis = useMemo(() => {
-    if (!result || !rootPersonId) return undefined
-    return analyzeCompleteness(traverseAncestors(buildGenealogyIndexes(result), rootPersonId, generationCount))
-  }, [generationCount, result, rootPersonId])
+    if (!traversal) return undefined
+    return analyzeCompleteness(traversal)
+  }, [traversal])
 
   const loadFile = async (file: File | undefined) => {
     if (!file) return
@@ -53,6 +62,7 @@ export function App() {
     setFileName(file.name)
     setRootPersonId('')
     setPersonSearch('')
+    setSelectedSlot(undefined)
   }
 
   const clearData = () => {
@@ -60,6 +70,7 @@ export function App() {
     setFileName('')
     setRootPersonId('')
     setPersonSearch('')
+    setSelectedSlot(undefined)
     if (fileInput.current) fileInput.current.value = ''
   }
 
@@ -130,11 +141,12 @@ export function App() {
             <input type="search" value={personSearch} onChange={(event) => setPersonSearch(event.target.value)} placeholder="Type a name" />
           </label>
           <div className="person-results" aria-label="People matching search">
-            {matchingPeople.map((person) => <button className={person.id === rootPersonId ? 'selected' : ''} type="button" key={person.id} onClick={() => { setRootPersonId(person.id); setPersonSearch(person.name.displayName) }} aria-pressed={person.id === rootPersonId}>{person.name.displayName}</button>)}
+            {matchingPeople.map((person) => <button className={person.id === rootPersonId ? 'selected' : ''} type="button" key={person.id} onClick={() => { setRootPersonId(person.id); setPersonSearch(person.name.displayName); setSelectedSlot(undefined) }} aria-pressed={person.id === rootPersonId}>{person.name.displayName}</button>)}
             {matchingPeople.length === 0 && <p>No matching people found.</p>}
           </div>
 
           {analysis && <div className="completeness-dashboard">
+            {traversal && <AncestorVisualizations traversal={traversal} onSelect={setSelectedSlot} />}
             <div className="dashboard-summary"><div><span>Known ancestor slots</span><strong>{analysis.knownSlots}</strong></div><div><span>Unique people</span><strong>{analysis.uniquePeople}</strong></div><div><span>Birth dates</span><strong>{Math.round(analysis.recordAvailability.birthDate * 100)}%</strong></div><div><span>Death places</span><strong>{Math.round(analysis.recordAvailability.deathPlace * 100)}%</strong></div></div>
             <div className="table-scroll"><table>
               <caption>Ancestor coverage by generation</caption>
@@ -149,6 +161,8 @@ export function App() {
             <div className="date-precision"><h3>Date precision across unique people</h3>{([['Birth', analysis.birthDates], ['Death', analysis.deathDates]] as const).map(([label, dates]) => <article key={label}><h4>{label} dates</h4><p>{dates.available} available · {dates.missing} missing · {dates.approximate} approximate</p><dl><div><dt>Full date</dt><dd>{dates.precision.day}</dd></div><div><dt>Month/year</dt><dd>{dates.precision.month}</dd></div><div><dt>Year only</dt><dd>{dates.precision.year}</dd></div><div><dt>Unrecognized</dt><dd>{dates.precision.unknown}</dd></div></dl></article>)}</div>
           </div>}
         </section>}
+
+        {selectedSlot && indexes && <PersonDetails slot={selectedSlot} indexes={indexes} onClose={() => setSelectedSlot(undefined)} />}
 
         <section className="privacy-card" aria-labelledby="privacy-title">
           <div className="lock-icon" aria-hidden="true">⌂</div>
