@@ -939,6 +939,19 @@ The visualization must distinguish:
 * missing ancestor;
 * repeated person caused by pedigree collapse.
 
+## 26.1 Ahnentafel research table
+
+Provide an ahnentafel table with one row for every displayed ancestor slot, including unknown ancestors. The table must make missing values visually obvious and show:
+
+* ahnentafel number;
+* full name;
+* birth date and place;
+* death date and place;
+* age at death where it can be derived;
+* age when the next descendant in the selected line was born where it can be derived.
+
+Name, date, and place cells must be editable as a private working copy. The interface must clearly explain whether an edit changes the imported model or only the current browser session. Derived ages must be identified as approximate when only years are available.
+
 ---
 
 # 27. Fan chart
@@ -962,6 +975,10 @@ Required:
 * zoom where useful;
 * visible missing ancestor slots;
 * indication of repeated people where practical.
+
+Names must not be silently truncated. Text size and orientation must adapt to the available segment space. Outer-generation labels should use a radial orientation, and labels in the lower half must be reversed so they remain readable. Segments must include birth and death dates; outer generations may reduce these to years.
+
+Dragging from any part of the chart, including a person segment, must pan without opening person details. A person is selected only when the pointer is released without a drag gesture.
 
 Possible optional encodings include:
 

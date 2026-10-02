@@ -34,6 +34,11 @@ describe('App', () => {
     expect(screen.getByText('Date precision across unique people')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Avery Example' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Interactive ancestor tree')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ancestor ahnentafel' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name for ancestor 2')).toHaveValue('Robin Example')
+    expect(screen.getByText('≈ 30')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Death date for ancestor 2'), { target: { value: '2020' } })
+    expect(screen.getByText('≈ 70')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Fan chart' }))
     expect(screen.getByLabelText('Interactive radial ancestor fan chart')).toBeInTheDocument()

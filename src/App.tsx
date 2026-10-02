@@ -6,6 +6,7 @@ import type { ImportResult } from './import/types'
 import type { AncestorSlot } from './genealogy/model'
 import { AncestorVisualizations } from './visualization/AncestorVisualizations'
 import { PersonDetails } from './visualization/PersonDetails'
+import { AhnentafelTable } from './visualization/AhnentafelTable'
 
 const features = [
   ['Branching paths', 'Explore ancestors in trees and radial fan charts.'],
@@ -147,6 +148,7 @@ export function App() {
 
           {analysis && <div className="completeness-dashboard">
             {traversal && <AncestorVisualizations traversal={traversal} onSelect={setSelectedSlot} />}
+            {traversal && indexes && <AhnentafelTable traversal={traversal} indexes={indexes} />}
             <div className="dashboard-summary"><div><span>Known ancestor slots</span><strong>{analysis.knownSlots}</strong></div><div><span>Unique people</span><strong>{analysis.uniquePeople}</strong></div><div><span>Birth dates</span><strong>{Math.round(analysis.recordAvailability.birthDate * 100)}%</strong></div><div><span>Death places</span><strong>{Math.round(analysis.recordAvailability.deathPlace * 100)}%</strong></div></div>
             <div className="table-scroll"><table>
               <caption>Ancestor coverage by generation</caption>
